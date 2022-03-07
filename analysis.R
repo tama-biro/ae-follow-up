@@ -1,6 +1,7 @@
 
 library(tidyverse)
 library(lme4)
+library(pwr)
 
 data <- read.csv(file.choose())
 
@@ -28,6 +29,31 @@ t.test(post_low_3 ~ condition, data = data_t1,
        alternative = 'greater',
        var.equal = TRUE)
 
+# Cohen's D
+d_c <- (mean(data_t1$post_low_c[data_t1$condition == 'T1']) - 
+          mean(data_t1$post_low_c[data_t1$condition == 'T2'])) /
+  sqrt(
+    (
+      sd(data_t1$post_low_c[data_t1$condition == 'T1'])^2 +
+        sd(data_t1$post_low_c[data_t1$condition == 'T2'])^2
+    )
+    /2
+  )
+
+d_3 <- (mean(data_t1$post_low_3[data_t1$condition == 'T1']) - 
+          mean(data_t1$post_low_3[data_t1$condition == 'T2'])) /
+  sqrt(
+    (
+      sd(data_t1$post_low_3[data_t1$condition == 'T1'])^2 +
+        sd(data_t1$post_low_3[data_t1$condition == 'T2'])^2
+    )
+    /2
+  )
+
+# Power for medium effect size
+pwr.t2n.test(n1 = 56, n2 = 101, d = 0.2, alternative = 'greater')
+
+
 # Test 2
 # After-effect = 0 in T1 and T2
 
@@ -36,6 +62,17 @@ t.test(data_t1$post_low_3[data_t1$condition == 'T1'], mu = 0)
 
 t.test(data_t1$post_low_c[data_t1$condition == 'T2'], mu = 0)
 t.test(data_t1$post_low_3[data_t1$condition == 'T2'], mu = 0)
+
+# Cohen's D
+mean(data_t1$post_low_c[data_t1$condition == 'T1']) / 
+  sd(data_t1$post_low_c[data_t1$condition == 'T1'])
+mean(data_t1$post_low_3[data_t1$condition == 'T1']) / 
+  sd(data_t1$post_low_3[data_t1$condition == 'T1'])
+
+mean(data_t1$post_low_c[data_t1$condition == 'T2']) / 
+  sd(data_t1$post_low_c[data_t1$condition == 'T2'])
+mean(data_t1$post_low_3[data_t1$condition == 'T2']) / 
+  sd(data_t1$post_low_3[data_t1$condition == 'T2'])
 
 # Test 3
 # Mixed model with post-low - 3
