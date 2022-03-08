@@ -29,6 +29,9 @@ t.test(post_low_3 ~ condition, data = data_t1,
        alternative = 'greater',
        var.equal = TRUE)
 
+wilcox.test(post_low_c ~ condition, data = data_t1, 
+            alternative = 'greater')
+
 # Cohen's D
 d_c <- (mean(data_t1$post_low_c[data_t1$condition == 'T1']) - 
           mean(data_t1$post_low_c[data_t1$condition == 'T2'])) /
@@ -51,7 +54,7 @@ d_3 <- (mean(data_t1$post_low_3[data_t1$condition == 'T1']) -
   )
 
 # Power for medium effect size
-pwr.t2n.test(n1 = 56, n2 = 101, d = 0.2, alternative = 'greater')
+pwr.t2n.test(n1 = 56, n2 = 101, d = d_c, alternative = 'greater')
 
 
 # Test 2
@@ -74,8 +77,10 @@ mean(data_t1$post_low_c[data_t1$condition == 'T2']) /
 mean(data_t1$post_low_3[data_t1$condition == 'T2']) / 
   sd(data_t1$post_low_3[data_t1$condition == 'T2'])
 
+pwr.t.test(n = 56, d = 0.673, type = 'one.sample')
+
 # Test 3
-# Mixed model with post-low - 3
+# Mixed model with post-low - C
 # For both T1 and T2
 data_t3 <- data %>%
   filter(type != 'Diversion' & time > 0 & results > 0) %>%
@@ -89,7 +94,7 @@ data_t3 <- data %>%
   ungroup() %>%
   filter(post_low_c != 999)
 
-mmt3_c <- lmer(scale(post_low_c) ~ condition + scale(time) + (1 | ID),
+mmt3_c <- lmer(scale(post_low_c) ~ condition + (1 | ID),
                data = data_t3)
 
 summary(mmt3_c)
@@ -99,6 +104,13 @@ mmt3_3 <- lmer(scale(post_low_3) ~ condition + scale(time) + (1 | ID),
 
 summary(mmt3_3)
 
+# Test 4
+# Mixed model with post-low - C
+# For both T1 and T2, volatility as predictor
+mmt4_c <- lmer(scale(post_low_c) ~ factor(stddev_1) + (1 | ID),
+               data = data_t3)
+
+summary(mmt4_c)
 
 # Plot
 data_plot <- data %>%
@@ -112,7 +124,7 @@ data_plot <- data %>%
                values_to = 'value')
 
 # v1
-ggplot(data_plot[data_plot$condition == 'T2', ], aes(ID, value)) +
+ggplot(data_plot[data_plot$condition == 'T1', ], aes(ID, value)) +
   geom_line(aes(group=ID, col = line_col)) +
   geom_point(aes(shape = type)) +
   labs(x = 'Participant number', y = 'Reported Volatility') +
@@ -121,7 +133,7 @@ ggplot(data_plot[data_plot$condition == 'T2', ], aes(ID, value)) +
   scale_color_manual(values = c('black', 'gray'), name = 'Direction') +
   theme_minimal()
 
-ggsave('difference_postlow_control_T2.png', height = 6, width = 12)
+ggsave('difference_postlow_control_T1.png', height = 6, width = 12)
 
 
 data_plot2 <- data %>%
@@ -130,7 +142,7 @@ data_plot2 <- data %>%
   summarize(post_low = mean(results[stddev_1 < stddev_2])) %>%
   ungroup()
 
-ggplot(data_plot2[data_plot2$condition == 'T1', ], aes(ID, post_low)) +
+ggplot(data_plot2[data_plot2$condition == 'T2', ], aes(ID, post_low)) +
   geom_hline(yintercept = 3, alpha = 0.8) +
   geom_point(color = 'darkblue', alpha = 0.7) +
   labs(x = 'Participant number', y = 'Reported Volatility') +
