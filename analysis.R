@@ -2,6 +2,7 @@
 library(tidyverse)
 library(lme4)
 library(pwr)
+library(MuMIn)
 
 data <- read.csv(file.choose())
 
@@ -9,7 +10,7 @@ data <- read.csv(file.choose())
 # Test 1
 # After-effect in T1 vs. T2
 data_t1 <- data %>%
-  filter(type != 'Diversion' & time > 0 & results > 0) %>%
+  filter(type != 'Diversion' & results > 0) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c = 
               mean(results[stddev_1 < stddev_2]) - 
@@ -83,7 +84,7 @@ pwr.t.test(n = 56, d = 0.673, type = 'one.sample')
 # Mixed model with post-low - C
 # For both T1 and T2
 data_t3 <- data %>%
-  filter(type != 'Diversion' & time > 0 & results > 0) %>%
+  filter(type != 'Diversion' & results > 0) %>%
   group_by(ID) %>%
   mutate(post_low_c = if_else(stddev_1 < stddev_2, 
                               results - mean(results[type == 'Control']),
@@ -99,6 +100,17 @@ mmt3_c <- lmer(scale(post_low_c) ~ condition + (1 | ID),
 
 summary(mmt3_c)
 
+r.squaredGLMM(mmt3_c)
+
+mmt3_c2 <- lmer(scale(post_low_c) ~ condition + scale(time) + (1 | ID),
+               data = data_t3)
+
+summary(mmt3_c2)
+
+AIC(mmt3_c, mmt3_c2)
+
+r.squaredGLMM(mmt3_c2)
+
 mmt3_3 <- lmer(scale(post_low_3) ~ condition + scale(time) + (1 | ID),
                data = data_t3)
 
@@ -107,10 +119,27 @@ summary(mmt3_3)
 # Test 4
 # Mixed model with post-low - C
 # For both T1 and T2, volatility as predictor
-mmt4_c <- lmer(scale(post_low_c) ~ factor(stddev_1) + (1 | ID),
+mmt4_c <- lmer(scale(post_low_c) ~ scale(stddev_1) + (1 | ID),
                data = data_t3)
 
 summary(mmt4_c)
+
+r.squaredGLMM(mmt4_c)
+
+data_t4 <- data_t3 %>%
+  mutate(volatility = if_else(
+    stddev_1 == 0.02, -1,
+    if_else(
+      stddev_1 == 0.04, 0, 1
+    )
+  ))
+
+mmt4_c2 <- lmer(scale(post_low_c) ~ volatility + (1 | ID),
+               data = data_t4)
+
+summary(mmt4_c2)
+
+r.squaredGLMM(mmt4_c2)
 
 # Plot
 data_plot <- data %>%
