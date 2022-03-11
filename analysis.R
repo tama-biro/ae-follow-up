@@ -3,6 +3,7 @@ library(tidyverse)
 library(lme4)
 library(pwr)
 library(MuMIn)
+library(simglm)
 
 data <- read.csv(file.choose())
 
@@ -17,14 +18,17 @@ data_t1 <- data %>%
               mean(results[type == 'Control']),
             post_low_3 = 
               mean(results[stddev_1 < stddev_2]) - 3) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(condition = factor(condition, levels = c('T2', 'T1')))
 
 # Check normality (holds for both)
 hist(data_t1$post_low_c[data_t1$condition == 'T2'])
 shapiro.test(data_t1$post_low_c[data_t1$condition == 'T2'])
 
+psych::describe(data_t1$post_low_c[data_t1$condition == 'T1'])
+
 t.test(post_low_c ~ condition, data = data_t1, 
-       alternative = 'greater',
+       alternative = 'less',
        var.equal = TRUE)
 t.test(post_low_3 ~ condition, data = data_t1, 
        alternative = 'greater',
@@ -55,7 +59,7 @@ d_3 <- (mean(data_t1$post_low_3[data_t1$condition == 'T1']) -
   )
 
 # Power for medium effect size
-pwr.t2n.test(n1 = 56, n2 = 101, d = d_c, alternative = 'greater')
+pwr.t2n.test(n1 = 56, n2 = 131, d = .5, alternative = 'greater')
 
 
 # Test 2
@@ -78,7 +82,7 @@ mean(data_t1$post_low_c[data_t1$condition == 'T2']) /
 mean(data_t1$post_low_3[data_t1$condition == 'T2']) / 
   sd(data_t1$post_low_3[data_t1$condition == 'T2'])
 
-pwr.t.test(n = 56, d = 0.673, type = 'one.sample')
+pwr.t.test(n = 131, d = 0.2, type = 'one.sample')
 
 # Test 3
 # Mixed model with post-low - C
@@ -153,16 +157,18 @@ data_plot <- data %>%
                values_to = 'value')
 
 # v1
-ggplot(data_plot[data_plot$condition == 'T1', ], aes(ID, value)) +
+ggplot(data_plot[data_plot$condition == 'T2', ], aes(ID, value)) +
   geom_line(aes(group=ID, col = line_col)) +
   geom_point(aes(shape = type)) +
   labs(x = 'Participant number', y = 'Reported Volatility') +
   scale_shape_manual(values = c(18, 8), labels = c('Control', 'Post-low'),
                      name = 'Trial type') +
-  scale_color_manual(values = c('black', 'gray'), name = 'Direction') +
-  theme_minimal()
+  scale_color_manual(values = c('#0fbfd6', '#18191a'), name = 'Direction') +
+  scale_y_continuous(limits = c(1.5, 5)) +
+  theme_minimal() +
+  guides(color = guide_legend(order = 2), shape = guide_legend(order = 1))
 
-ggsave('difference_postlow_control_T1.png', height = 6, width = 12)
+ggsave('difference_postlow_control_T2.png', height = 6, width = 12)
 
 
 data_plot2 <- data %>%
@@ -178,5 +184,65 @@ ggplot(data_plot2[data_plot2$condition == 'T2', ], aes(ID, post_low)) +
   theme_minimal()
 
 ggsave('difference_postlow_3_T1.png', height = 6, width = 12)
+
+
+#### Power for mixed models ####
+power = c()
+for(i in 1:100) {
+  sim_arguments <- list(
+    formula = y ~ 1 + condition + (1 | id),
+    fixed = list(condition = list(var_type = 'factor',
+                              levels = c('T1', 'T2'),
+                              var_level = 2)),
+    # fixed = list(condition = list(var_type = 'continuous',
+    #                               mean = 0,
+    #                               sd = 1,
+    #                               var_level = 2)),
+    randomeffect = list(int_id = list(variance = 1, var_level = 2)),
+    sample_size = list(level1 = 9, level2 = 186),
+    reg_weights = c(0, -.2)
+  )
+  
+  nested_data <- sim_arguments %>%
+    simulate_fixed(data = NULL, .) %>%
+    simulate_randomeffect(sim_arguments) %>%
+    simulate_error(sim_arguments) %>%
+    generate_response(sim_arguments)
+  
+  model = lmer(y ~ 1 + condition+ (1 | id),
+                data = nested_data)
+  
+  t = summary(model)[[10]][2,4]
+  
+  if(t < -1.68) {
+    power[length(power) + 1] = 1
+  } else {
+    power[length(power) + 1] = 0
+  }
+}
+
+mean(power)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
