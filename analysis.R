@@ -93,7 +93,7 @@ d_3 <- (mean(data_t1$post_low_3[data_t1$condition == 'T1']) -
   )
 
 # Power for medium effect size
-pwr.t2n.test(n1 = 56, n2 = 131, d = d_c, alternative = 'less')
+pwr.t2n.test(n1 = 56, n2 = 31, d = d_c, alternative = 'less')
 
 
 # Test 2
@@ -295,23 +295,26 @@ ggsave('after-effect_difference.png', width = 10, height = 8)
 #### Power for mixed models ####
 power = c()
 power_int = c()
-for(i in 1:100) {
+for(i in 1:1000) {
   sim_arguments <- list(
-    formula = y ~ 1 + condition * trial_type + (1 | id),
+    formula = y ~ 1 + condition + (1 | id),
     # fixed = list(condition = list(var_type = 'factor',
     #                           levels = c('T1', 'T2'),
     #                           var_level = 2)),
-    fixed = list(
-    condition = list(var_type = 'factor',
-                     levels = c('T1', 'T2'),
-                     var_level = 2),
-    trial_type = list(var_type = 'factor',
-                      levels = c('post-low', 'post-high'),
-                      var_level = 2)
-    ),
+    fixed = list(condition = list(var_type = 'continuous',
+                              mean = 0, sd = 1,
+                              var_level = 2)),
+    # fixed = list(
+    # condition = list(var_type = 'factor',
+    #                  levels = c('T1', 'T2'),
+    #                  var_level = 2),
+    # trial_type = list(var_type = 'factor',
+    #                   levels = c('post-low', 'post-high'),
+    #                   var_level = 2)
+    # ),
     randomeffect = list(int_id = list(variance = 1, var_level = 2)),
-    sample_size = list(level1 = 18, level2 = 165),
-    reg_weights = c(0, -.5, -.5, -.5)
+    sample_size = list(level1 = 18, level2 = 188),
+    reg_weights = c(0, -.2)
   )
   
   nested_data <- sim_arguments %>%
@@ -320,7 +323,7 @@ for(i in 1:100) {
     simulate_error(sim_arguments) %>%
     generate_response(sim_arguments)
   
-  model = lmer(y ~ 1 + condition * trial_type + (1 | id),
+  model = lmer(y ~ 1 + condition + (1 | id),
                 data = nested_data)
   
   t = summary(model)[[10]][2,4]
@@ -331,13 +334,13 @@ for(i in 1:100) {
     power[length(power) + 1] = 0
   }
   
-  t_int = summary(model)[[10]][4,4]
-  
-  if(abs(t_int) > 1.96) {
-    power_int[length(power_int) + 1] = 1
-  } else {
-    power_int[length(power_int) + 1] = 0
-  }
+  # t_int = summary(model)[[10]][4,4]
+  # 
+  # if(abs(t_int) > 1.96) {
+  #   power_int[length(power_int) + 1] = 1
+  # } else {
+  #   power_int[length(power_int) + 1] = 0
+  # }
 }
 
 mean(power)
@@ -351,7 +354,7 @@ mean(power_int)
 # Mixed model with post-high - C
 # For both T1 and T2
 data_t3 <- data %>%
-  filter(type != 'Diversion' & results > 0) %>%
+  filter(type != 'Diversion' & results > 0 & experiment %in% c('', 'S5')) %>%
   group_by(ID) %>%
   mutate(post_high_c = if_else(stddev_1 > stddev_2, 
                               results - mean(results[type == 'Control']),
