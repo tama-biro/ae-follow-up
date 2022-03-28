@@ -139,7 +139,9 @@ data_plot <- data %>%
   summarize(post_low = mean(results[stddev_1 < stddev_2]),
             control = mean(results[type == 'Control'])) %>%
   ungroup() %>%
-  mutate(line_col = ifelse(post_low > control, 'After-effect', 'No after-effect')) %>%
+  mutate(line_col = ifelse(post_low > control, 
+                           'After-effect', 
+                           'No after-effect')) %>%
   pivot_longer(c('control', 'post_low'), names_to = 'type',
                values_to = 'value')
 
