@@ -5,7 +5,6 @@ library(lme4)
 library(pwr)
 library(MuMIn)
 library(simglm)
-library(pracma)
 
 data <- read.csv(file.choose())
 
@@ -16,16 +15,16 @@ data <- read.csv(file.choose())
 data_t1 <- data %>%
   filter(type != 'Diversion' & results > 0 & experiment %in% c('', 'S5')) %>%
   group_by(ID, condition) %>%
-  summarize(post_low_c = 
-              mean(results[stddev_1 < stddev_2]) - 
+  summarize(post_low_c =
+              mean(results[stddev_1 < stddev_2]) -
               mean(results[type == 'Control']),
-            post_high_c = 
-              mean(results[stddev_1 > stddev_2]) - 
-              mean(results[type == 'Control'])) %>%
+            post_high_c =
+              mean(results[type == 'Control']) -
+              mean(results[stddev_1 > stddev_2])) %>%
   ungroup() %>%
   mutate(condition = factor(condition, levels = c('T2', 'T1')))
 
-psych::describeBy(data_t1$post_low_c, group = data_t1$condition)
+psych::describeBy(data_t1$post_high_c, group = data_t1$condition)
 
 # Check normality (holds for both)
 hist(data_t1$post_low_c[data_t1$condition == 'T2'])
@@ -104,13 +103,13 @@ r.squaredGLMM(mmt4_c)
 #### Post-high ####
 
 # Test 3
-# Mixed model with post-high - C
+# Mixed model with C - post-high
 # For both T1 and T2
 data_t3 <- data %>%
   filter(type != 'Diversion' & results > 0) %>%
   group_by(ID) %>%
   mutate(post_high_c = if_else(stddev_1 > stddev_2, 
-                              results - mean(results[type == 'Control']),
+                              mean(results[type == 'Control'] - results),
                               999)) %>%
   ungroup() %>%
   filter(post_high_c != 999)
@@ -134,7 +133,7 @@ r.squaredGLMM(mmt4_c)
 
 # Plot
 data_plot <- data %>%
-  filter(type != 'Diversion' & results != 0 & experiment %in% c('', 'S5')) %>%
+  filter(type != 'Diversion' & results != 0) %>%
   group_by(ID, condition) %>%
   summarize(post_low = mean(results[stddev_1 < stddev_2]),
             control = mean(results[type == 'Control'])) %>%
@@ -145,7 +144,7 @@ data_plot <- data %>%
   pivot_longer(c('control', 'post_low'), names_to = 'type',
                values_to = 'value')
 
-# v1
+# v1 - post-low
 ggplot(data_plot[data_plot$condition == 'T2', ], aes(ID, value)) +
   geom_line(aes(group=ID, col = line_col)) +
   geom_point(aes(shape = type)) +
@@ -153,12 +152,38 @@ ggplot(data_plot[data_plot$condition == 'T2', ], aes(ID, value)) +
   scale_shape_manual(values = c(18, 8), labels = c('Control', 'Post-low'),
                      name = 'Trial type') +
   scale_color_manual(values = c('#0fbfd6', '#18191a'), name = 'Direction') +
-  scale_y_continuous(limits = c(1.5, 5)) +
+  scale_y_continuous(limits = c(1, 5)) +
   theme_minimal() +
   guides(color = guide_legend(order = 2), shape = guide_legend(order = 1))
 
 ggsave('difference_postlow_control_T2.png', height = 6, width = 12)
 
+
+# v1 - post-high
+data_plot <- data %>%
+  filter(type != 'Diversion' & results != 0) %>%
+  group_by(ID, condition) %>%
+  summarize(control = mean(results[type == 'Control']),
+            post_high = mean(results[stddev_1 > stddev_2])) %>%
+  ungroup() %>%
+  mutate(line_col = ifelse(post_high < control, 
+                             'After-effect', 
+                             'No after-effect')) %>%
+  pivot_longer(c('control', 'post_high'), names_to = 'type',
+               values_to = 'value')
+
+ggplot(data_plot[data_plot$condition == 'T1', ], aes(ID, value)) +
+  geom_line(aes(group=ID, col = line_col)) +
+  geom_point(aes(shape = type)) +
+  labs(x = 'Participant number', y = 'Reported Volatility') +
+  scale_shape_manual(values = c(18, 8), labels = c('Control', 'Post-high'),
+                     name = 'Trial type') +
+  scale_color_manual(values = c('#0fbfd6', '#18191a'), name = 'Direction') +
+  scale_y_continuous(limits = c(1, 5)) +
+  theme_minimal() +
+  guides(color = guide_legend(order = 2), shape = guide_legend(order = 1))
+
+ggsave('difference_posthigh_control_T1.png', height = 6, width = 12)
 
 #### Interaction model ####
 data_int <- data %>%
@@ -296,6 +321,26 @@ for (i in 1:nrow(param_grid)) {
 
 param_grid
 
+
+
+# Chi-squared test
+# Proportion with positive post-low in T1 vs. T2
+data_t2 <- data %>%
+  filter(type != 'Diversion' & results > 0 & experiment %in% c('', 'S5')) %>%
+  group_by(ID, condition) %>%
+  summarize(post_low_c =
+              if_else(mean(results[stddev_1 < stddev_2]) -
+                        mean(results[type == 'Control']) > 0, 1, 0),
+            post_high_c =
+              if_else(mean(results[type == 'Control']) -
+                        mean(results[stddev_1 > stddev_2]) > 0, 1, 0)) %>%
+  ungroup() %>%
+  mutate(condition = factor(condition, levels = c('T2', 'T1')))
+
+
+chisq.test(data_t2$condition, data_t2$post_high_c)
+
+pwr.chisq.test(w = 0.1, N = 188, df = 1)
 
 
 
