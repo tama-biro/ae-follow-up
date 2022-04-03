@@ -338,9 +338,11 @@ data_t2 <- data %>%
   mutate(condition = factor(condition, levels = c('T2', 'T1')))
 
 
-chisq.test(data_t2$condition, data_t2$post_high_c)
+chisq.test(data_t2$condition, data_t2$post_low_c)
 
-pwr.chisq.test(w = 0.1, N = 188, df = 1)
+table(data_t2$condition, data_t2$post_low_c)
+
+pwr.chisq.test(w = 0.3, N = 188, df = 1)
 
 
 
