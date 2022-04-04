@@ -3,6 +3,8 @@ library(tidyverse)
 library(EnvStats)
 library(lme4)
 library(pwr)
+library(effectsize)
+library(MESS)
 library(MuMIn)
 library(simglm)
 
@@ -109,7 +111,7 @@ data_t3 <- data %>%
   filter(type != 'Diversion' & results > 0) %>%
   group_by(ID) %>%
   mutate(post_high_c = if_else(stddev_1 > stddev_2, 
-                              mean(results[type == 'Control'] - results),
+                              mean(results[type == 'Control']) - results,
                               999)) %>%
   ungroup() %>%
   filter(post_high_c != 999)
@@ -322,11 +324,15 @@ for (i in 1:nrow(param_grid)) {
 param_grid
 
 
-
+# Test 4
 # Chi-squared test
 # Proportion with positive post-low in T1 vs. T2
-data_t2 <- data %>%
-  filter(type != 'Diversion' & results > 0 & experiment %in% c('', 'S5')) %>%
+data_t4 <- data %>%
+  filter(
+    type != 'Diversion'
+    & results > 0
+#    & condition == 'T2'
+    ) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c =
               if_else(mean(results[stddev_1 < stddev_2]) -
@@ -338,15 +344,50 @@ data_t2 <- data %>%
   mutate(condition = factor(condition, levels = c('T2', 'T1')))
 
 
-chisq.test(data_t2$condition, data_t2$post_low_c)
+chisq.test(data_t4$condition, data_t4$post_high_c)
 
-table(data_t2$condition, data_t2$post_low_c)
+table(data_t4$condition, data_t4$post_high_c)
 
-pwr.chisq.test(w = 0.3, N = 188, df = 1)
+pwr.chisq.test(w = 0.3, N = 87, df = 1)
 
+mc_nem_dat <- table(data_t4$post_low_c, data_t4$post_high_c) %>%
+  as.matrix()
 
+mcnemar.test(mc_nem_dat)
 
+power_mcnemar_test(n = 188, paid=.15, psi = NULL,
+                   alternative = 'one.sided', power = 0.9,
+                   sig.level = .1)
 
+# Test 5
+# Paired t-test for post-high - post-low
+data_t5 <- data %>%
+  filter(
+    type != 'Diversion'
+    & results > 0
+#    & condition == 'T2'
+    ) %>%
+  group_by(ID) %>%
+  summarize(post_low = mean(results[stddev_1 < stddev_2]) -
+                        mean(results[type == 'Control']),
+            post_high = mean(results[type == 'Control']) -
+                        mean(results[stddev_1 > stddev_2])) %>%
+  ungroup() %>%
+  filter(post_low > 0 & post_high > 0) %>%
+  pivot_longer(c(post_low, post_high), names_to = "trial_type",
+               values_to = "after_effect") %>%
+  mutate(trial_type = factor(trial_type, levels = c("post_high", "post_low")))
+
+t.test(after_effect ~ trial_type, data = data_t5,
+       paired = TRUE, alternative = 'greater')
+
+cohens_d(after_effect ~ trial_type, data = data_t5,
+         paired = TRUE, alternative = 'greater')
+
+pwr.t.test(n = 179, d = .2, type = 'paired', alternative = 'greater')
+
+pwr.t.test(n = 178, power = 0.8, sig.level = .05,
+           type = 'paired', alternative = 'greater')
 
 
 
