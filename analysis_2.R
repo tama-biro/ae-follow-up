@@ -10,6 +10,12 @@ library(simglm)
 
 data <- read.csv(file.choose())
 
+#### Sanity check diversion ####
+data %>%
+  filter(results > 0 & type == 'Diversion' & condition == 'T2') %>%
+  group_by(stddev_2, results) %>%
+  summarize(count = n())
+
 #### Post-low AE ####
 
 # Test 1
@@ -331,7 +337,7 @@ data_t4 <- data %>%
   filter(
     type != 'Diversion'
     & results > 0
-#    & condition == 'T2'
+    & condition == 'T2'
     ) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c =
@@ -355,9 +361,9 @@ mc_nem_dat <- table(data_t4$post_low_c, data_t4$post_high_c) %>%
 
 mcnemar.test(mc_nem_dat)
 
-power_mcnemar_test(n = 188, paid=.15, psi = NULL,
+power_mcnemar_test(n = 132, paid=.15, psi = NULL,
                    alternative = 'one.sided', power = 0.9,
-                   sig.level = .1)
+                   sig.level = .05)
 
 # Test 5
 # Paired t-test for post-high - post-low
@@ -388,6 +394,5 @@ pwr.t.test(n = 179, d = .2, type = 'paired', alternative = 'greater')
 
 pwr.t.test(n = 178, power = 0.8, sig.level = .05,
            type = 'paired', alternative = 'greater')
-
 
 
