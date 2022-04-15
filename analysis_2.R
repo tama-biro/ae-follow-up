@@ -16,6 +16,25 @@ data %>%
   group_by(stddev_2, results) %>%
   summarize(count = n())
 
+d <- data %>%
+  filter(
+    results > 0
+#    & results < 4
+    & type == 'Diversion'
+    & condition == 'T1'
+    ) %>%
+  group_by(ID, results) %>%
+  summarize(count = n()) %>%
+  ungroup %>%
+  mutate(fraction_5 = sum(count[results == 5])/sum(count),
+         fraction_4 = sum(count[results == 4])/sum(count),
+         only_5 = sum(count == max(count) & results == 5)/length(unique(ID)))
+
+
+# Exclude
+data <- data %>%
+  filter(!(ID %in% c(26, 173, 181, 183)))
+
 #### Post-low AE ####
 
 # Test 1
@@ -40,6 +59,10 @@ shapiro.test(data_t1$post_low_c[data_t1$condition == 'T2'])
 
 sum(data_t1$post_low_c[data_t1$condition == 'T1'] > 0)/
   length(data_t1$post_low_c[data_t1$condition == 'T1'])
+
+# Box-Cox transformation
+data_t1$post_low_c <- boxcoxTransform(data_t1$post_low_c + 1, 3)
+data_t1$post_high_c <- boxcoxTransform(data_t1$post_high_c + 1, 3)
 
 t.test(post_low_c ~ condition, data = data_t1, 
        alternative = 'less',
@@ -337,7 +360,8 @@ data_t4 <- data %>%
   filter(
     type != 'Diversion'
     & results > 0
-    & condition == 'T2'
+#    & condition == 'T2'
+#    & experiment %in% c('', 'S5')
     ) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c =
@@ -351,6 +375,9 @@ data_t4 <- data %>%
 
 
 chisq.test(data_t4$condition, data_t4$post_high_c)
+
+fisher.test(data_t4$condition, data_t4$post_low_c,
+            alternative = 'greater')
 
 table(data_t4$condition, data_t4$post_high_c)
 
@@ -371,7 +398,7 @@ data_t5 <- data %>%
   filter(
     type != 'Diversion'
     & results > 0
-#    & condition == 'T2'
+    & condition == 'T2'
     ) %>%
   group_by(ID) %>%
   summarize(post_low = mean(results[stddev_1 < stddev_2]) -
@@ -379,7 +406,7 @@ data_t5 <- data %>%
             post_high = mean(results[type == 'Control']) -
                         mean(results[stddev_1 > stddev_2])) %>%
   ungroup() %>%
-  filter(post_low > 0 & post_high > 0) %>%
+  filter(post_low > 0 | post_high > 0) %>%
   pivot_longer(c(post_low, post_high), names_to = "trial_type",
                values_to = "after_effect") %>%
   mutate(trial_type = factor(trial_type, levels = c("post_high", "post_low")))
