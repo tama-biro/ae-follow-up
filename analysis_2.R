@@ -4,6 +4,7 @@ library(EnvStats)
 library(lme4)
 library(pwr)
 library(effectsize)
+library(statmod)
 library(MESS)
 library(MuMIn)
 library(simglm)
@@ -361,7 +362,7 @@ data_t4 <- data %>%
     type != 'Diversion'
     & results > 0
 #    & condition == 'T2'
-#    & experiment %in% c('', 'S5')
+    & experiment %in% c('', 'S5')
     ) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c =
@@ -376,12 +377,17 @@ data_t4 <- data %>%
 
 chisq.test(data_t4$condition, data_t4$post_high_c)
 
-fisher.test(data_t4$condition, data_t4$post_low_c,
-            alternative = 'greater')
-
 table(data_t4$condition, data_t4$post_high_c)
 
 pwr.chisq.test(w = 0.3, N = 87, df = 1)
+
+# Fisher test
+fisher.test(data_t4$condition, data_t4$post_high_c,
+            alternative = 'greater')
+
+# RR of 1.22, 1.86 are small, medium
+power.fisher.test(.73, (.73/1.22), 28, 55,
+                  alternative = 'greater')
 
 mc_nem_dat <- table(data_t4$post_low_c, data_t4$post_high_c) %>%
   as.matrix()
