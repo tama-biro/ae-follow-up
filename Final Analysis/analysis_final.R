@@ -32,7 +32,7 @@ d <- data %>%
          only_5 = sum(count == max(count) & results == 5)/length(unique(ID)))
 
 
-# Exclude
+# Exclude (comment out if no exclusion applied)
 data <- data %>%
   filter(!(ID %in% c(26, 173, 181, 183)))
 
@@ -355,14 +355,14 @@ param_grid
 
 
 # Test 4
-# Chi-squared test
+# Fisher's Exact test
 # Proportion with positive post-low in T1 vs. T2
 data_t4 <- data %>%
   filter(
     type != 'Diversion'
     & results > 0
 #    & condition == 'T2'
-    & experiment %in% c('', 'S5')
+#    & experiment %in% c('', 'S5')
     ) %>%
   group_by(ID, condition) %>%
   summarize(post_low_c =
@@ -378,8 +378,6 @@ data_t4 <- data %>%
 chisq.test(data_t4$condition, data_t4$post_high_c)
 
 table(data_t4$condition, data_t4$post_high_c)
-
-pwr.chisq.test(w = 0.3, N = 87, df = 1)
 
 # Fisher test
 fisher.test(data_t4$condition, data_t4$post_high_c,
